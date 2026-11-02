@@ -1,0 +1,67 @@
+# Walk-forward protocol for ORB on Stocks in Play, version 1.
+#
+# Run:  trading-bot-walkforward docs/research/walkforward-orb-v1.toml
+# How the runner works: ../../src/trading_bot/backtest/README.md ("Walk-forward").
+#
+# Written on 2026-11-02, before any walk-forward result was seen. The grid's values were chosen
+# after the exploratory 2024-2025 runs in orb.md, so those two years are less independent than
+# the rest. Changing anything below after seeing results means starting a new version (copy
+# this file to v2). Old runs stay in the ledger and keep counting as trials.
+
+name = "orb-wf-v1"
+universe = "store"            # the downloaded stocks plus the ETF extras (SPY, QQQ, sectors...)
+notes = [                     # printed under Caveats in every report
+  "The grid's values were chosen after the exploratory 2024-2025 runs (orb.md), so those years are less independent than the others.",
+  "The quiet-setup thresholds come from 2024-2025 quintiles.",
+]
+
+[years]
+first = 2017                  # first training year
+first_test = 2019             # first out-of-sample year (trained on 2017-2018)
+last_test = 2025              # 7 out-of-sample years: 2019-2025
+final = 2026                  # one-shot holdout (Jan-Oct 2026), evaluated only with --final
+window = "anchored"           # train on every year from `first` to the year before the test
+
+[selection]
+metric = "net_r"              # mean net R per trade, after costs, worst-case intrabar fills
+min_trades = 500              # over the training years; thinner variants can't be picked
+score = "neighborhood"        # average with neighbours on ordered axes: favour plateaus
+
+[criteria]                    # all must hold on the 2019-2025 out-of-sample record
+min_t = 3.0                   # day-clustered t (Harvey & Liu: ~3 after many tries)
+min_positive_years = 0.7      # at least 5 of the 7 test years positive
+cost_multiplier = 2.0         # still positive with every cost doubled
+max_pbo = 0.25                # the selection rule rarely picks a below-median variant
+min_dsr = 0.95                # Deflated Sharpe of the final pick, given every ledgered trial
+final_min_t = 0.0             # with --final: the 2026 pick must at least be positive
+# Always checked: out-of-sample net R must beat a random-direction placebo.
+
+[checks]
+pbo_blocks = 16               # CSCV: 12,870 splits of the 2017-2025 days
+bootstrap = 2000              # day-bootstrap resamples for the out-of-sample interval
+placebo_seeds = 5             # random-direction reruns of each pick
+seed = 0
+
+[params]                      # fixed for every variant; unset fields keep the strategy defaults
+                              # (14-day lookback, price >= $5, 1M avg volume, ATR >= $0.50,
+                              # top 20 by RelVol, flatten at 15:50)
+
+[costs]                       # defaults: 4 bps spread (min 1 cent), 1 bp slippage, +2 bps on
+                              # stops, SEC/TAF fees, no commission
+
+[portfolio]
+initial_equity = 25000        # every year starts here
+risk_per_trade = 0.01
+max_leverage = 4.0
+worst_case_intrabar = true
+
+[grid]                        # 3 x 2 x 4 x 2 = 48 variants
+or_minutes = [5, 15, 30]
+stop_mode = ["range", "atr"]  # far side of the range, or 10% of ATR (the paper's stop)
+min_relvol = [1, 2, 5, 10]
+setup = [
+  { label = "all" },
+  # Skip quiet setups (orb.md, "stock subsets"): ATR >= 2.1% of price, |gap| >= 0.66% and
+  # opening-range width >= 1.18% of price.
+  { label = "no-quiet", min_atr_pct = 0.021, min_gap = 0.0066, min_range_pct = 0.0118 },
+]

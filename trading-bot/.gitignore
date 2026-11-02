@@ -1,0 +1,41 @@
+# Secrets (keys live in ~/.config/trading-bot/.env; only the template is committed)
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Environments
+.venv/
+venv/
+
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Runtime output
+logs/
+*.log
+data-cache/
+data-store/
+backtests/
+
+# Data files anywhere (bar and tick stores, exports)
+*.sqlite
+*.sqlite-*
+*.db
+*.parquet
+*.csv
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
